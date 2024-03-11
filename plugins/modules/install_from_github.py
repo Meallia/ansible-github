@@ -20,7 +20,7 @@ import filecmp
 from collections import defaultdict
 
 
-DOCUMENTATION = """
+DOCUMENTATION = r"""
 module: install_from_github
 short_description: Download and install assets from Github releases page.
 description:
@@ -34,6 +34,13 @@ options:
     description:
       - The name of the repository in the format `user_or_org/repo_name`.
     required: true
+    type: str
+    
+  github_api_url:
+    description:
+      - The github API url (if you need to use a mirror).
+    required: false
+    default: https://api.github.com
     type: str
 
   tag:
@@ -103,7 +110,7 @@ options:
 
 RETURN = ""
 
-EXAMPLES = """
+EXAMPLES = r"""
 - name: install latest version of lego (ACME client)
   quera.github.install_from_github:
     repo: go-acme/lego
@@ -383,6 +390,8 @@ def main():
             "version_file": {"required": False, "type": "path"},
             # 5. after download, move files/dirs to destinations
             "move_rules": {"required": True, "type": "list", "elements": "dict"},
+            # 6. Optionally set a mirror for github api
+            "github_api_url": {"required": False, "type": "str", "default": "https://api.github.com"}
         },
         supports_check_mode=False,
         mutually_exclusive=(
@@ -400,6 +409,7 @@ def main():
     version_regex = module.params["version_regex"] or r"\d+\.\d+(?:\.\d+)?"
     version_file = module.params["version_file"]
     move_rules: List[dict] = module.params["move_rules"]
+    github_api_url: str = module.params["github_api_url"]
 
     if not re.match(r"[\w\-_]+/[\w\-_]+", repo):
         module.fail_json(msg="Invalid repo")
@@ -433,7 +443,7 @@ def main():
         # https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name
         release_info_url = f"/repos/{repo}/releases/tags/{tag}"
 
-    release_info = get_json_url(f"https://api.github.com{release_info_url}")
+    release_info = get_json_url(f"{github_api_url}{release_info_url}")
 
     if not is_download_required(
         module, version_command, version_regex, version_file, release_info
